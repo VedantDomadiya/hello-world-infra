@@ -1,0 +1,59 @@
+name: CD - Deploy Infrastructure via Terraform
+
+on:
+  # Triggered by the CI repository sending a dispatch event
+  repository_dispatch:
+    types: [new-image-build] # Matches the event-type sent from CI workflow
+
+  # Allows manual triggering from the GitHub Actions UI
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Docker image tag to deploy (e.g., commit SHA)'
+        required: true
+
+env:
+  AWS_REGION: ap-south-1
+  TF_VAR_container_image_tag: ${{ github.event.client_payload.image_tag || github.event.inputs.image_tag }} # Get tag from dispatch payload or manual input
+
+jobs:
+  deploy-infra:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # If using OIDC for Terraform
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    # Configure AWS Credentials (using OIDC or secrets)
+    # Ensure these credentials have Terraform permissions (ECS, RDS, VPC, IAM, SecretsManager, etc.)
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      # Optionally specify terraform_version
+
+    - name: Terraform Init
+      id: init
+      run: terraform -chdir=./terraform init # Assuming terraform code is in 'terraform' subdir
+
+    - name: Terraform Plan
+      id: plan
+      run: |
+        terraform -chdir=./terraform plan -no-color -input=false -var="container_image_tag=${{ env.TF_VAR_container_image_tag }}"
+      # Add -detailed-exitcode if you want to check if there are changes
+
+    # Add a manual approval step here if desired
+
+    - name: Terraform Apply
+      id: apply
+      # if: github.ref == 'refs/heads/main' && steps.plan.outputs.exitcode == 2 # Example: Apply only on main branch if plan shows changes
+      run: |
+        terraform -chdir=./terraform apply -auto-approve -input=false -var="container_image_tag=${{ env.TF_VAR_container_image_tag }}"
