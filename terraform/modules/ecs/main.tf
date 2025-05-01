@@ -2,6 +2,8 @@
 resource "aws_ecr_repository" "app" {
   name = "${var.project_name}-app" # Consistent naming
 
+  force_delete = true # Add this line to allow deleting non-empty repo
+
   image_scanning_configuration {
     scan_on_push = true
   }

@@ -1,0 +1,84 @@
+name: MANUAL - Destroy Infrastructure via Terraform
+
+on:
+  # Allows manual triggering from the GitHub Actions UI
+  workflow_dispatch:
+    inputs:
+      confirm_destroy:
+        description: 'Type "destroy" to confirm infrastructure deletion.'
+        required: true
+        default: 'do-not-destroy'
+
+env:
+  AWS_REGION: ap-south-1
+  # Add any TF_VAR_ environment variables needed by Terraform init/plan/destroy
+  # if they aren't hardcoded or defaulted in your .tf files (e.g., TF_VAR_project_name if needed)
+  # TF_VAR_project_name: hello-world # Example if needed by backend config, etc.
+
+jobs:
+  terraform-destroy:
+    # Add a confirmation check based on the input
+    if: github.event.inputs.confirm_destroy == 'destroy'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # If using OIDC for Terraform
+
+    # Define an environment for potential manual approval step
+    environment:
+      name: destroy-approval # Create this environment in repo Settings > Environments
+      url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} # Optional: Link to workflow run
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    # Configure AWS Credentials (using OIDC or secrets)
+    # Ensure these credentials have Terraform permissions to destroy resources
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+
+    - name: Terraform Init
+      id: init
+      run: terraform -chdir=./terraform init # Must initialize with same backend config
+
+    - name: Terraform Plan Destroy
+      id: plan-destroy
+      run: |
+        echo "--- Planning destruction ---"
+        terraform -chdir=./terraform plan -destroy -no-color -input=false
+        # This step shows what *would* be destroyed. It doesn't destroy yet.
+
+    # --- Optional: Manual Approval Gate ---
+    # This step relies on the 'destroy-approval' environment configured in your
+    # repository settings (Settings > Environments). Add a "Required reviewers"
+    # protection rule to this environment to enforce manual approval before proceeding.
+    # If you don't configure the environment protection rule, this step does nothing extra.
+    - name: Waiting for approval to destroy... (Check Environment Protection Rules)
+      run: echo "Proceeding to destroy after manual approval (if configured)."
+
+    - name: Terraform Destroy
+      id: destroy
+      run: |
+        echo "--- Applying destruction ---"
+        terraform -chdir=./terraform destroy -auto-approve -input=false
+
+    - name: Destruction Complete
+      run: echo "Infrastructure destruction process finished."
+
+  cancel-if-not-confirmed:
+    if: github.event.inputs.confirm_destroy != 'destroy'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cancel workflow run
+        run: |
+          echo "Destruction not confirmed. Input was '${{ github.event.inputs.confirm_destroy }}', expected 'destroy'."
+          # Optionally fail the workflow explicitly
+          exit 1
