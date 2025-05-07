@@ -75,3 +75,13 @@ variable "assign_public_ip" {
   type        = bool
   default     = true
 }
+
+variable "alb_app_target_group_arn" {
+  description = "ARN of the ALB Target Group to associate with the ECS service"
+  type        = string
+}
+
+variable "alb_security_group_id" {
+  description = "ID of the ALB's security group, to allow traffic from ALB to tasks"
+  type        = string
+}

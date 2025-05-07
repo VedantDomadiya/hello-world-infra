@@ -88,7 +88,8 @@ resource "aws_iam_role_policy_attachment" "ecs_read_db_secret_attachment" {
 # --- Security Group for ECS Tasks ---
 resource "aws_security_group" "ecs_tasks" {
   name        = "${var.project_name}-ecs-tasks-sg"
-  description = "Allow inbound HTTP and outbound to RDS & Internet"
+#  description = "Allow inbound HTTP and outbound to RDS & Internet"
+  description = "Allow inbound from ALB and outbound to RDS & Internet"
   vpc_id      = var.vpc_id
 
   tags = {
@@ -103,9 +104,11 @@ resource "aws_security_group_rule" "ecs_ingress_http" {
   from_port         = var.container_port
   to_port           = var.container_port
   protocol          = "tcp"
-  cidr_blocks       = ["0.0.0.0/0"]
+# cidr_blocks       = ["0.0.0.0/0"]
+  source_security_group_id = var.alb_security_group_id # Allow traffic only from ALB SG
   security_group_id = aws_security_group.ecs_tasks.id
-  description       = "Allow HTTP inbound"
+# description       = "Allow HTTP inbound"
+  description       = "Allow inbound from ALB"
 }
 
 # Rule: Allow ECS Tasks Egress TO RDS SG
@@ -193,10 +196,22 @@ resource "aws_ecs_service" "app" {
   desired_count   = var.desired_task_count
   launch_type     = "FARGATE"
 
+  # network_configuration {
+  #   subnets         = var.public_subnet_ids     # Use public subnets for now
+  #   security_groups = [aws_security_group.ecs_tasks.id] # Use SG created in this module
+  #   assign_public_ip = var.assign_public_ip      # Assign public IPs to tasks
+  # }
+
   network_configuration {
-    subnets         = var.public_subnet_ids     # Use public subnets for now
-    security_groups = [aws_security_group.ecs_tasks.id] # Use SG created in this module
-    assign_public_ip = var.assign_public_ip      # Assign public IPs to tasks
+    subnets         = var.public_subnet_ids # Tasks can be in public or private subnets
+    security_groups = [aws_security_group.ecs_tasks.id]
+    assign_public_ip = false # Tasks no longer need public IPs; ALB handles external access
+  }
+
+  load_balancer {
+    target_group_arn = var.alb_app_target_group_arn
+    container_name   = "${var.project_name}-container" # Must match name in task definition
+    container_port   = var.container_port             # Must match container port in task definition
   }
 
   # Force a new deployment when the task definition changes (e.g., new image)

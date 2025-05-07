@@ -37,12 +37,13 @@ resource "aws_security_group_rule" "rds_egress_all" {
 resource "random_password" "db_password" {
   length           = 16
   special          = true
-  override_special = "_%@" # Limit special characters if needed by RDS
+  override_special = "_%!?#$" # Limit special characters if needed by RDS
 }
 
 # --- Store DB Credentials in Secrets Manager ---
 resource "aws_secretsmanager_secret" "db_credentials" {
-  name = "${var.project_name}/${var.environment}/dbms--credentials"
+  name = "${var.project_name}/${var.environment}/db--credentials"
+  recovery_window_in_days = 0
   tags = {
     Name        = "${var.project_name}-db-secret"
     Environment = var.environment

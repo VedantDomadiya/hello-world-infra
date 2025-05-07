@@ -1,0 +1,30 @@
+# terraform/terraform.tfvars.example
+
+# aws_region             = "ap-south-1" # Already defaulted in variables.tf
+# project_name           = "hello-world" # Already defaulted
+# environment            = "dev" # Already defaulted
+
+# --- Network Module Variables ---
+# vpc_cidr_block         = "10.0.0.0/16" # Already defaulted
+
+# --- RDS Module Variables ---
+# db_name                = "webappdb" # Already defaulted
+# db_username            = "dbadmin" # Already defaulted
+# db_instance_class      = "db.t3.micro" # Already defaulted
+# db_allocated_storage   = 20 # Already defaulted
+# db_engine              = "postgres" # Already defaulted
+# db_engine_version      = "17" # Check and use a valid supported version for your engine and region
+# db_port                = 5432 # Already defaulted
+
+# --- ECS Module Variables ---
+# container_image_tag    = "latest" # This will be overridden by CI/CD workflow
+# container_port         = 80 # Already defaulted
+
+# --- New Variables for ALB, WAF, Custom Domain ---
+custom_domain_name = "hello.your-cool-domain.com" # CHANGE THIS
+route53_zone_id    = "Z0XXXXXXXXXXXXXXEXAMPLE"     # CHANGE THIS to your Route 53 Hosted Zone ID
+
+# Example for WAF allowed IPs (your office IP, etc.). If empty, only managed rules and default action apply.
+waf_allowed_ips    = ["YOUR_HOME_OR_OFFICE_IP/32"] # CHANGE THIS or leave as []
+
+enable_waf         = true

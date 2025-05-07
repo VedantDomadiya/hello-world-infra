@@ -82,3 +82,54 @@ variable "container_port" {
   type        = number
   default     = 80
 }
+
+# variable "custom_domain_name" {
+#   description = "The custom domain name for the application"
+#   type        = string
+#   # No default, should be provided in .tfvars
+# }
+
+# variable "route53_zone_id" {
+#   description = "The Route 53 Hosted Zone ID where the custom domain record will be created."
+#   type        = string
+#   # No default, should be provided in .tfvars
+# }
+
+variable "waf_allowed_ips" {
+  description = "A list of IP addresses or CIDRs to allow through WAF. Example: [\"1.2.3.4/32\", \"5.6.0.0/16\"]"
+  type        = list(string)
+  default     = [] # Defaults to no specific IPs allowed by this rule, WAF default action will apply.
+}
+
+variable "enable_waf" {
+  description = "Set to true to enable WAF and its rules."
+  type        = bool
+  default     = true
+}
+
+// Add this if you want to use AWS Managed Rules for WAF
+variable "waf_managed_rule_groups" {
+  description = "A list of AWS Managed Rule Groups to apply. See AWS documentation for names and ARNs."
+  type = list(object({
+    name     = string
+    priority = number
+    override_action = optional(string, "none") # "none", "count", "block"
+    excluded_rules = optional(list(object({
+      name = string
+    })), [])
+    vendor_name = string # e.g. "AWS"
+  }))
+  default = [
+    {
+      name        = "AWSManagedRulesCommonRuleSet"
+      priority    = 10
+      vendor_name = "AWS"
+    },
+    {
+      name        = "AWSManagedRulesAmazonIpReputationList"
+      priority    = 20
+      vendor_name = "AWS"
+    }
+    # Add more managed rules here if needed
+  ]
+}
