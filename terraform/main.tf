@@ -22,7 +22,11 @@ module "ecs" {
   environment         = var.environment
   aws_region          = var.aws_region
   vpc_id              = module.network.vpc_id
-  public_subnet_ids   = module.network.public_subnet_ids # Deploying service in public subnets
+  #public_subnet_ids   = module.network.public_subnet_ids # Deploying service in public subnets
+  # Launch tasks in private subnets so they can use the NAT Gateway for outbound access
+  public_subnet_ids   = module.network.private_subnet_ids 
+  # Note: The variable name in the ECS module is still 'public_subnet_ids', but we are passing private subnet IDs to it. You could rename the variable in the ECS module to 'task_subnet_ids' for clarity if desired.
+  
   #  rds_sg_id           = module.rds.rds_sg_id      # Pass RDS SG ID for egress rule
   #  db_port             = var.db_port               # Pass DB port for egress rule
   db_secret_arn       = module.rds.db_secret_arn  # Pass Secret ARN for task definition

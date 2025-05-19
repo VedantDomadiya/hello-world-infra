@@ -41,8 +41,8 @@ resource "random_password" "db_password" {
 }
 
 # --- Store DB Credentials in Secrets Manager ---
-resource "aws_secretsmanager_secret" "db_credentials" {
-  name = "${var.project_name}/${var.environment}/db--credentials"
+resource "aws_secretsmanager_secret" "db_credsss" {
+  name = "${var.project_name}/${var.environment}/db_credsss"
   recovery_window_in_days = 0
   tags = {
     Name        = "${var.project_name}-db-secret"
@@ -51,8 +51,8 @@ resource "aws_secretsmanager_secret" "db_credentials" {
 }
 
 # Note: Secret version depends on the RDS instance via db_instance_address
-resource "aws_secretsmanager_secret_version" "db_credentials_version" {
-  secret_id     = aws_secretsmanager_secret.db_credentials.id
+resource "aws_secretsmanager_secret_version" "db_credsss_version" {
+  secret_id     = aws_secretsmanager_secret.db_credsss.id
   secret_string = jsonencode({
     username             = var.db_username
     password             = random_password.db_password.result
