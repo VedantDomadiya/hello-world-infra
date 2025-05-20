@@ -28,3 +28,25 @@ route53_zone_id    = "Z0XXXXXXXXXXXXXXEXAMPLE"     # CHANGE THIS to your Route 5
 waf_allowed_ips    = ["YOUR_HOME_OR_OFFICE_IP/32"] # CHANGE THIS or leave as []
 
 enable_waf         = true
+
+# enable_waf = true # Defaulted in variables.tf
+
+# Example of custom IP sets for WAF
+# waf_custom_ip_sets = {
+#   "trusted_developers" = {
+#     name               = "dev-ips"
+#     description        = "Allow traffic from developer IP addresses"
+#     ip_address_version = "IPV4"
+#     addresses          = ["YOUR_DEV_IP_1/32", "YOUR_DEV_IP_2/32"] # CHANGE THESE
+#     rule_action        = "allow"
+#     rule_priority      = 5 # Ensure priorities are unique and logical
+#   },
+#   "block_manual_list" = {
+#     name               = "manual-blocklist"
+#     description        = "Manually maintained blocklist of IPs"
+#     ip_address_version = "IPV4"
+#     addresses          = ["198.51.100.1/32"] # CHANGE THIS
+#     rule_action        = "block"
+#     rule_priority      = 6
+#   }
+# }

@@ -98,7 +98,7 @@ variable "container_port" {
 variable "waf_allowed_ips" {
   description = "A list of IP addresses or CIDRs to allow through WAF. Example: [\"1.2.3.4/32\", \"5.6.0.0/16\"]"
   type        = list(string)
-  default     = [] # Defaults to no specific IPs allowed by this rule, WAF default action will apply.
+  default     = ["192.168.0.131/24", "192.168.0.194/24"] # Defaults to no specific IPs allowed by this rule, WAF default action will apply.
 }
 
 variable "enable_waf" {
