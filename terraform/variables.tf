@@ -95,10 +95,40 @@ variable "container_port" {
 #   # No default, should be provided in .tfvars
 # }
 
-variable "waf_allowed_ips" {
-  description = "A list of IP addresses or CIDRs to allow through WAF. Example: [\"1.2.3.4/32\", \"5.6.0.0/16\"]"
-  type        = list(string)
-  default     = ["192.168.0.131/24", "192.168.0.194/24"] # Defaults to no specific IPs allowed by this rule, WAF default action will apply.
+# variable "waf_allowed_ips" {
+#   description = "A list of IP addresses or CIDRs to allow through WAF. Example: [\"1.2.3.4/32\", \"5.6.0.0/16\"]"
+#   type        = list(string)
+#   default     = [] # Defaults to no specific IPs allowed by this rule, WAF default action will apply.
+# }
+
+variable "waf_custom_ip_sets" {
+  description = "A map of custom IP sets to be created and used in WAF rules. Each key is a unique identifier for the IP set configuration."
+  type = map(object({
+    name               = string # A short name to be part of the AWS resource name, e.g., "office-ips"
+    description        = optional(string, "Custom IP Set defined by Terraform")
+    ip_address_version = string # Must be "IPV4" or "IPV6"
+    addresses          = list(string) # List of IP addresses or CIDRs, e.g., ["1.2.3.4/32", "5.6.0.0/16"]
+    rule_action        = string # WAF rule action: "allow", "block", or "count"
+    rule_priority      = number # Priority for the WAF rule (lower numbers evaluated first)
+  }))
+  default = {} # Default to no custom IP sets
+  # Example structure:
+  # {
+  #   "allow_office_network" = {
+  #     name               = "office-network"
+  #     ip_address_version = "IPV4"
+  #     addresses          = ["192.0.2.0/24"]
+  #     rule_action        = "allow"
+  #     rule_priority      = 1
+  #   },
+  #   "block_specific_ips" = {
+  #     name               = "specific-blocked-ips"
+  #     ip_address_version = "IPV4"
+  #     addresses          = ["203.0.113.42/32"]
+  #     rule_action        = "block"
+  #     rule_priority      = 2
+  #   }
+  # }
 }
 
 variable "enable_waf" {

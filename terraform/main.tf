@@ -86,18 +86,22 @@ module "alb" {
   container_port      = var.container_port
 }
 
-# --- WAF IP Set (for whitelisting) ---
-resource "aws_wafv2_ip_set" "allowed_ips" {
-  count = var.enable_waf && length(var.waf_allowed_ips) > 0 ? 1 : 0 # Create only if WAF enabled and IPs provided
+# --- WAF Custom IP Sets (Dynamically Created) ---
+resource "aws_wafv2_ip_set" "custom_ip_sets" {
+  # Create an IP set for each entry in the var.waf_custom_ip_sets map,
+  # but only if var.enable_waf is true.
+  for_each = var.enable_waf ? var.waf_custom_ip_sets : {}
 
-  name               = "${var.project_name}-allowed-ips"
-  scope              = "REGIONAL" # For use with Application Load Balancer
-  ip_address_version = "IPV4"    # Or IPV6 if needed
-  addresses          = var.waf_allowed_ips
+  name               = "${var.project_name}-${each.value.name}-${var.environment}" # Ensures unique name
+  description        = each.value.description
+  scope              = "REGIONAL" # For Application Load Balancer
+  ip_address_version = each.value.ip_address_version
+  addresses          = each.value.addresses
 
   tags = {
-    Name        = "${var.project_name}-waf-ipset"
+    Name        = "${var.project_name}-waf-ipset-${each.key}" # each.key is e.g., "trusted_developers"
     Environment = var.environment
+    RuleKey     = each.key # Store the original map key for easy reference if needed
   }
 }
 
@@ -109,65 +113,79 @@ resource "aws_wafv2_web_acl" "main" {
   scope = "REGIONAL"
 
   default_action {
-    allow {} # Default to allow traffic that doesn't match any block rules
-    # Or use block {} to default to block and only allow specific rules
+    allow {} # Or block {} depending on your default security posture
   }
 
-  # Example using a dynamic block for the IP set rule
+  # --- Dynamic Rules for Custom IP Sets ---
   dynamic "rule" {
-    for_each = length(var.waf_allowed_ips) > 0 ? [1] : [] # Add rule only if IPs are provided
+    # Iterate over the aws_wafv2_ip_set resources we created.
+    # 'aws_wafv2_ip_set.custom_ip_sets' will be an empty map if WAF is disabled or no custom sets are defined,
+    # so this dynamic block will correctly create zero rules in that case.
+    for_each = aws_wafv2_ip_set.custom_ip_sets
+
+    # 'rule.key' will be the map key from var.waf_custom_ip_sets (e.g., "trusted_developers")
+    # 'rule.value' will be the aws_wafv2_ip_set object itself (e.g., aws_wafv2_ip_set.custom_ip_sets["trusted_developers"])
     content {
-      name     = "AllowSpecificIPs"
-      priority = 1 # Lower numbers are evaluated first
+      name     = "Rule-For-${replace(rule.key, "_", "-")}" # Create a unique rule name
+      priority = var.waf_custom_ip_sets[rule.key].rule_priority # Get priority from the original variable map
 
       action {
-        allow {} # Allow traffic matching this rule
+        # Dynamically set the action based on the 'rule_action' from the variable
+        dynamic "allow" {
+          for_each = var.waf_custom_ip_sets[rule.key].rule_action == "allow" ? [1] : []
+          content {} # Empty content block for allow
+        }
+        dynamic "block" {
+          for_each = var.waf_custom_ip_sets[rule.key].rule_action == "block" ? [1] : []
+          content {} # Empty content block for block
+        }
+        dynamic "count" {
+          for_each = var.waf_custom_ip_sets[rule.key].rule_action == "count" ? [1] : []
+          content {} # Empty content block for count
+        }
       }
 
       statement {
         ip_set_reference_statement {
-          arn = aws_wafv2_ip_set.allowed_ips[0].arn # Reference the IP set created above
+          arn = rule.value.arn # Use the ARN of the IP set created in the loop
         }
       }
 
       visibility_config {
         cloudwatch_metrics_enabled = true
-        metric_name                = "AllowSpecificIPsMetric"
+        metric_name                = "Metric-For-${replace(rule.key, "_", "-")}"
         sampled_requests_enabled   = true
       }
     }
   }
 
-  # Example using a dynamic block for AWS Managed Rules (looping through variable)
+  # --- Dynamic Rules for AWS Managed Rule Groups (if you're using them) ---
   dynamic "rule" {
-    for_each = { for idx, rule_group in var.waf_managed_rule_groups : idx => rule_group } # Iterate over the list
+    for_each = { for idx, rg_config in var.waf_managed_rule_groups : "ManagedRule${idx}" => rg_config }
     content {
       name     = rule.value.name
       priority = rule.value.priority
 
       override_action {
-        # You can override the action of the entire rule group (e.g., to "count" instead of "block")
-        # "none" means use the actions defined by the rules within the group
         dynamic "count" {
-            for_each = rule.value.override_action == "count" ? [1] : []
-            content {}
+          for_each = rule.value.override_action == "count" ? [1] : []
+          content {}
         }
         dynamic "none" {
-            for_each = rule.value.override_action == "none" ? [1] : []
-            content {}
+          for_each = rule.value.override_action == "none" ? [1] : []
+          content {}
         }
-        # Add block if needed
+        # Add block if you want to allow overriding to block
       }
 
       statement {
         managed_rule_group_statement {
           name        = rule.value.name
-          vendor_name = rule.value.vendor_name # e.g., "AWS"
-          # You can exclude specific rules within a managed rule group
+          vendor_name = rule.value.vendor_name
           dynamic "excluded_rule" {
-            for_each = rule.value.excluded_rules
+            for_each = rule.value.excluded_rules != null ? rule.value.excluded_rules : []
             content {
-                name = excluded_rule.value.name
+              name = excluded_rule.value.name
             }
           }
         }
@@ -175,12 +193,11 @@ resource "aws_wafv2_web_acl" "main" {
 
       visibility_config {
         cloudwatch_metrics_enabled = true
-        metric_name                = substr("Metric${rule.value.name}", 0, 255) # Ensure metric name is valid
+        metric_name                = substr("Metric${rule.value.name}", 0, 255) # Ensure valid metric name
         sampled_requests_enabled   = true
       }
     }
   }
-
 
   visibility_config {
     cloudwatch_metrics_enabled = true
