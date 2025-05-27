@@ -4,22 +4,14 @@ resource "aws_security_group" "rds" {
   description = "Allow inbound traffic from ECS tasks"
   vpc_id      = var.vpc_id
 
-  tags = {
-    Name        = "${var.project_name}-rds-sg"
-    Environment = var.environment
-  }
+  tags = merge(
+    {
+      Name        = "${var.project_name}-rds-sg"
+      Environment = var.environment
+    },
+    var.custom_tags
+  )
 }
-
-# Rule: Allow RDS Ingress FROM ECS Tasks SG (passed as variable)
-# resource "aws_security_group_rule" "rds_ingress_from_ecs" {
-#   type                     = "ingress"
-#   from_port                = var.db_port
-#   to_port                  = var.db_port
-#   protocol                 = "tcp"
-#   source_security_group_id = var.ecs_tasks_sg_id # Traffic Source is ECS Tasks SG
-#   security_group_id        = aws_security_group.rds.id # Rule attached TO this RDS SG
-#   description              = "Allow RDS Ingress from ECS Tasks"
-# }
 
 # Default Egress (Allow all outbound) - Modify if needed
 resource "aws_security_group_rule" "rds_egress_all" {
@@ -44,10 +36,13 @@ resource "random_password" "db_password" {
 resource "aws_secretsmanager_secret" "db_credsss" {
   name = "${var.project_name}/${var.environment}/db_credsss"
   recovery_window_in_days = 0
-  tags = {
-    Name        = "${var.project_name}-db-secret"
-    Environment = var.environment
-  }
+  tags = merge(
+    {
+      Name        = "${var.project_name}-db-secret"
+      Environment = var.environment
+    },
+    var.custom_tags
+  )
 }
 
 # Note: Secret version depends on the RDS instance via db_instance_address
@@ -72,10 +67,13 @@ resource "aws_db_subnet_group" "main" {
   name       = "${var.project_name}-${var.environment}-sng"
   subnet_ids = var.private_subnet_ids # Use PRIVATE subnets passed as variable
 
-  tags = {
-    Name        = "${var.project_name}-db-subnet-group"
-    Environment = var.environment
-  }
+  tags = merge(
+    {
+      Name        = "${var.project_name}-db-subnet-group"
+      Environment = var.environment
+    },
+    var.custom_tags
+  )
 }
 
 # --- RDS DB Instance ---
@@ -101,8 +99,12 @@ resource "aws_db_instance" "main" {
   skip_final_snapshot    = var.db_skip_final_snapshot
   multi_az               = var.db_multi_az # Use variable
 
-  tags = {
-    Name        = "${var.project_name}-rds-instance"
-    Environment = var.environment
-  }
+  tags = merge(
+    {
+      Name        = "${var.project_name}-rds-instance"
+      Environment = var.environment
+      ManagedBy   = "Terraform"
+    },
+    var.custom_tags # Merge the custom tags from the variable
+  )
 }

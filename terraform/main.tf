@@ -2,11 +2,12 @@
 module "network" {
   source = "./modules/network"
 
-  project_name = var.project_name
-  environment  = var.environment
-  aws_region   = var.aws_region
-  vpc_cidr_block = var.vpc_cidr_block
-  # Using default subnet counts from module variables
+  project_name     = var.project_name
+  environment      = var.environment
+  aws_region       = var.aws_region
+  vpc_cidr_block   = var.vpc_cidr_block
+  public_subnets   = var.vpc_public_subnets_config  # Pass the new map variable
+  private_subnets  = var.vpc_private_subnets_config # Pass the new map variable
 }
 
 # --- ECS Module ---
@@ -59,7 +60,7 @@ module "rds" {
   db_engine_version    = var.db_engine_version
   db_port              = var.db_port
   # Using default multi-az/skip-snapshot from module variables
-
+  custom_tags = var.rds_custom_tags # Pass the new custom tags map
   # Explicit dependency to ensure ECS module (and its SG) is created before RDS tries to use its outputs
 #  depends_on = [module.ecs]
 }

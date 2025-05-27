@@ -77,3 +77,9 @@ variable "db_skip_final_snapshot" {
   type        = bool
   default     = true # Be cautious in production
 }
+
+variable "custom_tags" {
+  description = "A map of custom tags to apply to the RDS instance and related resources."
+  type        = map(string)
+  default     = {}
+}

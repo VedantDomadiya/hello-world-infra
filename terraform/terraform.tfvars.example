@@ -50,3 +50,17 @@ enable_waf         = true
 #     rule_priority      = 6
 #   }
 # }
+
+# vpc_public_subnets_config = {
+#   "public-subnet-a" = { cidr_suffix = "0", az_index = 0, tags = { Purpose = "NAT-and-Public-Services" } },
+#   "public-subnet-b" = { cidr_suffix = "1", az_index = 1, tags = { Purpose = "Public-Services-HA" } }
+# }
+# vpc_private_subnets_config = {
+#   "private-subnet-a" = { cidr_suffix = "10", az_index = 0, tags = { Purpose = "Application-Tier" } }, # Example: 10.0.10.0/24
+#   "private-subnet-b" = { cidr_suffix = "11", az_index = 1, tags = { Purpose = "Application-Tier-HA" } } # Example: 10.0.11.0/24
+# }
+
+# rds_custom_tags = {
+#   Application = "HelloWorldApp"
+#   Tier        = "Database"
+# }

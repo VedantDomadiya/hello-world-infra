@@ -19,14 +19,20 @@ variable "vpc_cidr_block" {
   default     = "10.0.0.0/16"
 }
 
-variable "public_subnet_count" {
-  description = "Number of public subnets to create across AZs"
-  type        = number
-  default     = 2
+variable "public_subnets" {
+  description = "A map of public subnets to create. Each key is a logical name, and the value contains cidr_suffix and az_index."
+  type = map(object({
+    cidr_suffix = string 
+    az_index    = number 
+    tags        = optional(map(string), {})
+  }))
 }
 
-variable "private_subnet_count" {
-  description = "Number of private subnets to create across AZs (should match public for AZ coverage)"
-  type        = number
-  default     = 2
+variable "private_subnets" {
+  description = "A map of private subnets to create. Each key is a logical name, and the value contains cidr_suffix and az_index."
+  type = map(object({
+    cidr_suffix = string 
+    az_index    = number 
+    tags        = optional(map(string), {})
+  }))
 }

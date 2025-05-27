@@ -25,18 +25,26 @@ resource "aws_internet_gateway" "main" {
   }
 }
 
-# --- Public Subnets ---
-resource "aws_subnet" "public" {
-  count                   = var.public_subnet_count
-  vpc_id                  = aws_vpc.main.id
-  cidr_block              = cidrsubnet(aws_vpc.main.cidr_block, 8, count.index) # e.g., 10.0.0.0/24, 10.0.1.0/24
-  availability_zone       = data.aws_availability_zones.available.names[count.index]
-  map_public_ip_on_launch = true # Important for ECS tasks needing direct public IP (or ALBs)
 
-  tags = {
-    Name        = "${var.project_name}-public-subnet-${count.index + 1}"
-    Environment = var.environment
-  }
+# --- Public Subnets using for_each ---
+resource "aws_subnet" "public" {
+  for_each = var.public_subnets # Iterate over the map
+
+  vpc_id                  = aws_vpc.main.id
+  # Calculate CIDR block: e.g., if vpc_cidr_block is 10.0.0.0/16 and suffix is "0", newbits=8 -> 10.0.0.0/24
+  cidr_block              = cidrsubnet(aws_vpc.main.cidr_block, 8, tonumber(each.value.cidr_suffix))
+  availability_zone       = data.aws_availability_zones.available.names[each.value.az_index]
+  map_public_ip_on_launch = true
+
+  tags = merge(
+    {
+      Name = "${var.project_name}-public-subnet-${each.key}" # each.key is "public_a", "public_b"
+    },
+    each.value.tags, # Merge custom tags from variable
+    {
+      Environment = var.environment
+    }
+  )
 }
 
 # --- Public Route Table ---
@@ -54,25 +62,31 @@ resource "aws_route_table" "public" {
   }
 }
 
-# --- Public Route Table Associations ---
+# --- Public Route Table Associations using for_each ---
 resource "aws_route_table_association" "public" {
-  count          = length(aws_subnet.public)
-  subnet_id      = aws_subnet.public[count.index].id
+  for_each = aws_subnet.public # Iterate over the created public subnets
+
+  subnet_id      = each.value.id
   route_table_id = aws_route_table.public.id
 }
 
-# --- Private Subnets (for RDS) ---
+# --- Private Subnets using for_each ---
 resource "aws_subnet" "private" {
-  count             = var.private_subnet_count
-  vpc_id            = aws_vpc.main.id
-  # Ensure CIDR blocks don't overlap with public ones
-  cidr_block        = cidrsubnet(aws_vpc.main.cidr_block, 8, count.index + var.public_subnet_count) # e.g., 10.0.2.0/24, 10.0.3.0/24
-  availability_zone = data.aws_availability_zones.available.names[count.index] # Assumes same AZs as public for simplicity
+  for_each = var.private_subnets
 
-  tags = {
-    Name        = "${var.project_name}-private-subnet-${count.index + 1}"
-    Environment = var.environment
-  }
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = cidrsubnet(aws_vpc.main.cidr_block, 8, tonumber(each.value.cidr_suffix))
+  availability_zone = data.aws_availability_zones.available.names[each.value.az_index]
+
+  tags = merge(
+    {
+      Name = "${var.project_name}-private-subnet-${each.key}"
+    },
+    each.value.tags,
+    {
+      Environment = var.environment
+    }
+  )
 }
 
 # --- Elastic IP for NAT Gateway ---
@@ -92,7 +106,7 @@ resource "aws_eip" "nat" {
 resource "aws_nat_gateway" "main" {
   allocation_id = aws_eip.nat.id
   # Place NAT GW in the first public subnet for simplicity
-  subnet_id     = aws_subnet.public[0].id
+  subnet_id     = aws_subnet.public[keys(var.public_subnets)[0]].id # Takes the first public subnet by sorted key order
 
   tags = {
     Name        = "${var.project_name}-nat-gw"
@@ -117,9 +131,10 @@ resource "aws_route_table" "private" {
   }
 }
 
-# --- Private Route Table Associations ---
+# --- Private Route Table Associations using for_each ---
 resource "aws_route_table_association" "private" {
-  count          = length(aws_subnet.private)
-  subnet_id      = aws_subnet.private[count.index].id
+  for_each = aws_subnet.private
+
+  subnet_id      = each.value.id
   route_table_id = aws_route_table.private.id
 }

@@ -83,24 +83,6 @@ variable "container_port" {
   default     = 80
 }
 
-# variable "custom_domain_name" {
-#   description = "The custom domain name for the application"
-#   type        = string
-#   # No default, should be provided in .tfvars
-# }
-
-# variable "route53_zone_id" {
-#   description = "The Route 53 Hosted Zone ID where the custom domain record will be created."
-#   type        = string
-#   # No default, should be provided in .tfvars
-# }
-
-# variable "waf_allowed_ips" {
-#   description = "A list of IP addresses or CIDRs to allow through WAF. Example: [\"1.2.3.4/32\", \"5.6.0.0/16\"]"
-#   type        = list(string)
-#   default     = [] # Defaults to no specific IPs allowed by this rule, WAF default action will apply.
-# }
-
 variable "waf_custom_ip_sets" {
   description = "A map of custom IP sets to be created and used in WAF rules. Each key is a unique identifier for the IP set configuration."
   type = map(object({
@@ -112,23 +94,6 @@ variable "waf_custom_ip_sets" {
     rule_priority      = number # Priority for the WAF rule (lower numbers evaluated first)
   }))
   default = {} # Default to no custom IP sets
-  # Example structure:
-  # {
-  #   "allow_office_network" = {
-  #     name               = "office-network"
-  #     ip_address_version = "IPV4"
-  #     addresses          = ["192.0.2.0/24"]
-  #     rule_action        = "allow"
-  #     rule_priority      = 1
-  #   },
-  #   "block_specific_ips" = {
-  #     name               = "specific-blocked-ips"
-  #     ip_address_version = "IPV4"
-  #     addresses          = ["203.0.113.42/32"]
-  #     rule_action        = "block"
-  #     rule_priority      = 2
-  #   }
-  # }
 }
 
 variable "enable_waf" {
@@ -162,4 +127,41 @@ variable "waf_managed_rule_groups" {
     }
     # Add more managed rules here if needed
   ]
+}
+
+variable "vpc_public_subnets_config" {
+  description = "Configuration for public subnets in the VPC module."
+  type = map(object({
+    cidr_suffix = string
+    az_index    = number
+    tags        = optional(map(string), {})
+  }))
+  default = {
+    "public_az1" = { cidr_suffix = "0", az_index = 0, tags = { "NameSuffix" = "az1" } },
+    "public_az2" = { cidr_suffix = "1", az_index = 1, tags = { "NameSuffix" = "az2" } }
+  }
+}
+
+variable "vpc_private_subnets_config" {
+  description = "Configuration for private subnets in the VPC module."
+  type = map(object({
+    cidr_suffix = string
+    az_index    = number
+    tags        = optional(map(string), {})
+  }))
+  default = {
+    "private_az1" = { cidr_suffix = "2", az_index = 0, tags = { "NameSuffix" = "az1-private" } },
+    "private_az2" = { cidr_suffix = "3", az_index = 1, tags = { "NameSuffix" = "az2-private" } }
+  }
+  # Ensure cidr_suffixes for private subnets do not overlap with public ones
+  # and are appropriate for your VPC's cidr_block and the newbits used in cidrsubnet (e.g., 8)
+}
+
+variable "rds_custom_tags" {
+  description = "Custom tags for RDS resources."
+  type        = map(string)
+  default     = {
+    Owner = "DevTeam"
+    CostCenter = "ProjectAlpha"
+  }
 }
