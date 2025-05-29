@@ -71,6 +71,30 @@ variable "container_port" {
   type        = number
 }
 
+variable "ecs_task_cpu" {
+  description = "CPU units for ECS task"
+  type        = number
+  // No default - will be set in terraform.tfvars
+}
+
+variable "ecs_task_memory" {
+  description = "Memory for ECS task in MiB"
+  type        = number
+  // No default - will be set in terraform.tfvars
+}
+
+variable "ecs_desired_task_count" {
+  description = "Desired number of tasks for ECS service"
+  type        = number
+  // No default - will be set in terraform.tfvars
+}
+
+variable "ecs_assign_public_ip" {
+  description = "Whether to assign public IP to ECS tasks"
+  type        = bool
+  // No default - will be set in terraform.tfvars
+}
+
 variable "waf_custom_ip_sets" {
   description = "A map of custom IP sets to be created and used in WAF rules. Each key is a unique identifier for the IP set configuration."
   type = map(object({
@@ -125,4 +149,16 @@ variable "vpc_private_subnets_config" {
 variable "rds_custom_tags" {
   description = "Custom tags for RDS resources."
   type        = map(string)
+}
+
+variable "db_multi_az" {
+  description = "Specifies if the RDS instance is multi-AZ"
+  type        = bool
+  #default     = false
+}
+
+variable "db_skip_final_snapshot" {
+  description = "Determines whether a final DB snapshot is created before deleting"
+  type        = bool
+ #default     = true # Be cautious in production
 }

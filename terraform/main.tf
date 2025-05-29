@@ -37,6 +37,11 @@ module "ecs" {
   alb_app_target_group_arn = module.alb.ecs_app_target_group_arn
   alb_security_group_id    = module.alb.alb_security_group_id
 
+  task_cpu               = var.ecs_task_cpu
+  task_memory            = var.ecs_task_memory
+  desired_task_count   = var.ecs_desired_task_count
+  assign_public_ip       = var.ecs_assign_public_ip
+
   # Explicit dependency to ensure RDS module (and its SG) is created before ECS tries to use its outputs
 #  depends_on = [module.rds]
 }
@@ -59,6 +64,8 @@ module "rds" {
   db_engine            = var.db_engine
   db_engine_version    = var.db_engine_version
   db_port              = var.db_port
+  db_multi_az = var.db_multi_az
+  db_skip_final_snapshot = var.db_skip_final_snapshot
   # Using default multi-az/skip-snapshot from module variables
   custom_tags = var.rds_custom_tags # Pass the new custom tags map
   # Explicit dependency to ensure ECS module (and its SG) is created before RDS tries to use its outputs
