@@ -1,19 +1,19 @@
 variable "project_name" {
   description = "Project name for tagging"
   type        = string
-  default     = "hello-world"
+  #default     = "hello-world"
 }
 
 variable "environment" {
   description = "Deployment environment"
   type        = string
-  default     = "dev"
+  #default     = "dev"
 }
 
 variable "aws_region" {
   description = "AWS region"
   type        = string
-  default     = "ap-south-1"
+  #default     = "ap-south-1"
 }
 
 variable "vpc_id" {
@@ -69,17 +69,17 @@ variable "db_port" {
 variable "db_multi_az" {
   description = "Specifies if the RDS instance is multi-AZ"
   type        = bool
-  default     = false
+  #default     = false
 }
 
 variable "db_skip_final_snapshot" {
   description = "Determines whether a final DB snapshot is created before deleting"
   type        = bool
-  default     = true # Be cautious in production
+ #default     = true # Be cautious in production
 }
 
 variable "custom_tags" {
   description = "A map of custom tags to apply to the RDS instance and related resources."
   type        = map(string)
-  default     = {}
+  #default     = {}
 }

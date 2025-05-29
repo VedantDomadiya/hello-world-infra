@@ -26,6 +26,16 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        path: main-infra # Checkout infra code to a specific subdirectory
+
+    - name: Checkout TFVars from Config Repo
+      uses: actions/checkout@v4
+      with:
+        repository: VedantDomadiya/hello-world-infra-configs/ # Replace with your config repo path
+        token: ${{ secrets.CONFIG_REPO_PAT }} # PAT with read access to the config repo
+        path: config-repo # Checkout config repo to a subdirectory
+        ref: main # Or the branch where your tfvars are
 
     # Configure AWS Credentials (using OIDC or secrets)
     # Ensure these credentials have Terraform permissions (ECS, RDS, VPC, IAM, SecretsManager, etc.)
@@ -40,20 +50,34 @@ jobs:
       uses: hashicorp/setup-terraform@v3
       # Optionally specify terraform_version
 
+    - name: Determine TFVars Path
+      id: tfvars_path
+      run: echo "path=./config-repo/${{ github.event.inputs.environment_config }}/terraform.tfvars" >> $GITHUB_OUTPUT
+
+    - name: Verify TFVars File
+      run: |
+        echo "Looking for tfvars file at: ${{ steps.tfvars_path.outputs.path }}"
+        ls -la ./config-repo/${{ github.event.inputs.environment_config }}/
+        if [ ! -f "${{ steps.tfvars_path.outputs.path }}" ]; then
+          echo "Error: ${{ steps.tfvars_path.outputs.path }} not found!"
+          exit 1
+        fi
+        echo "TFVars file found."
+
     - name: Terraform Init
       id: init
-      run: terraform -chdir=./terraform init # Assuming terraform code is in 'terraform' subdir
+      # Run from the directory where the main Terraform code was checked out
+      run: terraform -chdir=./main-infra/terraform init
 
     - name: Terraform Plan
       id: plan
       run: |
-        terraform -chdir=./terraform plan -no-color -input=false -var="container_image_tag=${{ env.TF_VAR_container_image_tag }}"
-      # Add -detailed-exitcode if you want to check if there are changes
-
-    # Add a manual approval step here if desired
+        terraform -chdir=./main-infra/terraform plan -no-color -input=false \
+          -var-file="${{ steps.tfvars_path.outputs.path }}"
+      # Note: TF_VAR_container_image_tag is automatically picked up
 
     - name: Terraform Apply
       id: apply
-      # if: github.ref == 'refs/heads/main' && steps.plan.outputs.exitcode == 2 # Example: Apply only on main branch if plan shows changes
       run: |
-        terraform -chdir=./terraform apply -auto-approve -input=false -var="container_image_tag=${{ env.TF_VAR_container_image_tag }}"
+        terraform -chdir=./main-infra/terraform apply -auto-approve -input=false \
+          -var-file="${{ steps.tfvars_path.outputs.path }}"

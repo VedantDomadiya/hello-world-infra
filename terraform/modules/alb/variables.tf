@@ -26,5 +26,5 @@ variable "public_subnet_ids" {
 variable "container_port" {
   description = "The port on which the application container listens"
   type        = number
-  default     = 80
+  #default     = 80
 }

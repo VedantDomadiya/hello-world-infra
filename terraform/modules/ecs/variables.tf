@@ -49,31 +49,31 @@ variable "container_image_uri" {
 variable "container_port" {
   description = "Port exposed by the container"
   type        = number
-  default     = 80
+  #default     = 80
 }
 
 variable "task_cpu" {
   description = "Fargate task CPU units"
   type        = number
-  default     = 256
+  #default     = 256
 }
 
 variable "task_memory" {
   description = "Fargate task memory in MiB"
   type        = number
-  default     = 512
+  #default     = 512
 }
 
 variable "desired_task_count" {
   description = "Number of tasks to run in the service"
   type        = number
-  default     = 1
+  #default     = 1
 }
 
 variable "assign_public_ip" {
   description = "Assign public IP to tasks (needed without a load balancer)"
   type        = bool
-  default     = true
+  #default     = true
 }
 
 variable "alb_app_target_group_arn" {

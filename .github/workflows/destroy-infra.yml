@@ -8,16 +8,17 @@ on:
         description: 'Type "destroy" to confirm infrastructure deletion.'
         required: true
         default: 'do-not-destroy'
+      environment_config:
+        description: 'Environment to destroy (e.g., dev, staging). This dictates which tfvars to use for context.'
+        required: true
+        default: 'dev'
 
 env:
-  AWS_REGION: ap-south-1
-  # Add any TF_VAR_ environment variables needed by Terraform init/plan/destroy
-  # if they aren't hardcoded or defaulted in your .tf files (e.g., TF_VAR_project_name if needed)
-  # TF_VAR_project_name: hello-world # Example if needed by backend config, etc.
+  AWS_REGION: ap-south-1 # Or from tfvars if it changes per environment
+  # TF_VAR_... for any sensitive variables needed for destroy (usually not many)
 
 jobs:
   terraform-destroy:
-    # Add a confirmation check based on the input
     if: github.event.inputs.confirm_destroy == 'destroy'
     runs-on: ubuntu-latest
     permissions:
@@ -32,6 +33,16 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        path: main-infra
+
+    - name: Checkout TFVars from Config Repo
+      uses: actions/checkout@v4
+      with:
+        repository: VedantDomadiya/hello-world-infra-configs 
+        token: ${{ secrets.CONFIG_REPO_PAT }}
+        path: config-repo
+        ref: main # Or your config branch
 
     # Configure AWS Credentials (using OIDC or secrets)
     # Ensure these credentials have Terraform permissions to destroy resources
@@ -44,6 +55,20 @@ jobs:
 
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v3
+
+    - name: Determine TFVars Path
+      id: tfvars_path
+      run: echo "path=./config-repo/${{ github.event.inputs.environment_config }}/terraform.tfvars" >> $GITHUB_OUTPUT
+
+    - name: Verify TFVars File
+      run: |
+        echo "Looking for tfvars file at: ${{ steps.tfvars_path.outputs.path }}"
+        ls -la ./config-repo/${{ github.event.inputs.environment_config }}/
+        if [ ! -f "${{ steps.tfvars_path.outputs.path }}" ]; then
+          echo "Error: ${{ steps.tfvars_path.outputs.path }} not found!"
+          exit 1
+        fi
+        echo "TFVars file found."
 
     - name: Terraform Init
       id: init
