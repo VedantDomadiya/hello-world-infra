@@ -32,7 +32,7 @@ jobs:
     - name: Checkout TFVars from Config Repo
       uses: actions/checkout@v4
       with:
-        repository: VedantDomadiya/hello-world-infra-configs/ # Replace with your config repo path
+        repository: VedantDomadiya/hello-world-infra-configs # Replace with your config repo path
         token: ${{ secrets.CONFIG_REPO_PAT }} # PAT with read access to the config repo
         path: config-repo # Checkout config repo to a subdirectory
         ref: main # Or the branch where your tfvars are
