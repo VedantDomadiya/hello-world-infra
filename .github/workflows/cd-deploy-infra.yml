@@ -52,12 +52,12 @@ jobs:
 
     - name: Determine TFVars Path
       id: tfvars_path
-      run: echo "path=./config-repo/${{ github.event.inputs.environment_config }}/terraform.tfvars" >> $GITHUB_OUTPUT
+      run: echo "path=./config-repo/terraform.tfvars" >> $GITHUB_OUTPUT
 
     - name: Verify TFVars File
       run: |
         echo "Looking for tfvars file at: ${{ steps.tfvars_path.outputs.path }}"
-        ls -la ./config-repo/${{ github.event.inputs.environment_config }}/
+        ls -la ./config-repo/
         if [ ! -f "${{ steps.tfvars_path.outputs.path }}" ]; then
           echo "Error: ${{ steps.tfvars_path.outputs.path }} not found!"
           exit 1
