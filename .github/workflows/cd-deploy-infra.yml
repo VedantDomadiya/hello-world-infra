@@ -28,33 +28,36 @@ env:
 jobs:
   deploy-infra:
     runs-on: ubuntu-latest
+    env:
+      # Determine target environment from either trigger and set it as an env var for the job
+      TARGET_ENVIRONMENT: ${{ github.event.client_payload.environment_config || github.event.inputs.environment_config }}
     permissions:
       contents: read
       id-token: write # If using OIDC for Terraform
 
     steps:
-    - name: Checkout code
+    - name: Checkout Infrastructure Code (CD Repo)
       uses: actions/checkout@v4
       with:
         path: main-infra # Checkout infra code to a specific subdirectory
 
-    - name: Set Environment Configuration # <--- NEW STEP TO DETERMINE ENVIRONMENT
-      id: set_environment
-      run: |
-        if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-          ENV_CONFIG="${{ github.event.inputs.environment_config }}"
-        elif [ "${{ github.event_name }}" == "repository_dispatch" ]; then
-          # Get environment from client_payload
-          ENV_CONFIG="${{ github.event.client_payload.environment_config }}"
-        fi
-        echo "Determined Environment: $ENV_CONFIG"
-        echo "environment_config=$ENV_CONFIG" >> "$GITHUB_OUTPUT"
+    # - name: Set Environment Configuration # <--- NEW STEP TO DETERMINE ENVIRONMENT
+    #   id: set_environment
+    #   run: |
+    #     if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+    #       ENV_CONFIG="${{ github.event.inputs.environment_config }}"
+    #     elif [ "${{ github.event_name }}" == "repository_dispatch" ]; then
+    #       # Get environment from client_payload
+    #       ENV_CONFIG="${{ github.event.client_payload.environment_config }}"
+    #     fi
+    #     echo "Determined Environment: $ENV_CONFIG"
+    #     echo "environment_config=$ENV_CONFIG" >> "$GITHUB_OUTPUT"
     
     - name: Checkout TFVars from Config Repo
       uses: actions/checkout@v4
       with:
-        repository: VedantDomadiya/hello-world-infra-configs # Replace with your config repo path
-        token: ${{ secrets.CONFIG_REPO_PAT }} # PAT with read access to the config repo
+        repository: VedantDomadiya/hello-world-infra-configs # Replace with your config repo
+        token: ${{ secrets.CONFIG_REPO_PAT }} 
         path: config-repo # Checkout config repo to a subdirectory
         ref: main # Or the branch where your tfvars are
 
@@ -69,21 +72,24 @@ jobs:
 
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v3
-      # Optionally specify terraform_version
 
-    - name: Determine TFVars Path
-      id: tfvars_path
-      run: echo "path=./config-repo/${{ steps.set_environment.outputs.environment_config }}/terraform.tfvars" >> $GITHUB_OUTPUT
+    # - name: Determine TFVars Path
+    #   id: tfvars_path
+    #   run: echo "path=./config-repo/${{ steps.set_environment.outputs.environment_config }}/terraform.tfvars" >> $GITHUB_OUTPUT
 
     - name: Verify TFVars File
       run: |
-        echo "Looking for tfvars file at: ${{ steps.tfvars_path.outputs.path }}"
-        ls -la ./config-repo/
-        if [ ! -f "${{ steps.tfvars_path.outputs.path }}" ]; then
-          echo "Error: ${{ steps.tfvars_path.outputs.path }} not found!"
+        # Construct the absolute path to the tfvars file
+        VAR_FILE_PATH="${{ github.workspace }}/config-repo/${{ env.TARGET_ENVIRONMENT }}/terraform.tfvars"
+        echo "Verifying that tfvars file exists at absolute path: $VAR_FILE_PATH"
+        if [ ! -f "$VAR_FILE_PATH" ]; then
+          echo "Error: TFVars file not found at the expected path!"
+          # List contents for debugging
+          echo "--- Listing contents of config-repo ---"
+          ls -R ${{ github.workspace }}/config-repo
           exit 1
         fi
-        echo "TFVars file found."
+        echo "TFVars file found successfully."
 
     - name: Terraform Init
       id: init
@@ -93,12 +99,14 @@ jobs:
     - name: Terraform Plan
       id: plan
       run: |
+        # Use the absolute path to the tfvars file
         terraform -chdir=./main-infra/terraform plan -no-color -input=false \
-          -var-file="${{ steps.tfvars_path.outputs.path }}"
-      # Note: TF_VAR_container_image_tag is automatically picked up
+          -var-file="${{ github.workspace }}/config-repo/${{ env.TARGET_ENVIRONMENT }}/terraform.tfvars" 
+      # Note: The TF_VAR_container_image_tag set at the top level is still automatically picked up by Terraform
 
     - name: Terraform Apply
       id: apply
       run: |
+        # Use the absolute path to the tfvars file again
         terraform -chdir=./main-infra/terraform apply -auto-approve -input=false \
-          -var-file="${{ steps.tfvars_path.outputs.path }}"
+          -var-file="${{ github.workspace }}/config-repo/${{ env.TARGET_ENVIRONMENT }}/terraform.tfvars"
