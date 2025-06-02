@@ -11,6 +11,15 @@ on:
       image_tag:
         description: 'Docker image tag to deploy (e.g., commit SHA)'
         required: true
+      environment_config: # <--- NEW INPUT FOR MANUAL DISPATCH
+        description: 'Environment configuration to use (e.g., dev, prod, staging)'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - 'dev'
+          - 'prod'
+          - 'staging'
 
 env:
   AWS_REGION: ap-south-1
@@ -29,6 +38,18 @@ jobs:
       with:
         path: main-infra # Checkout infra code to a specific subdirectory
 
+    - name: Set Environment Configuration # <--- NEW STEP TO DETERMINE ENVIRONMENT
+      id: set_environment
+      run: |
+        if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          ENV_CONFIG="${{ github.event.inputs.environment_config }}"
+        elif [ "${{ github.event_name }}" == "repository_dispatch" ]; then
+          # Get environment from client_payload
+          ENV_CONFIG="${{ github.event.client_payload.environment_config }}"
+        fi
+        echo "Determined Environment: $ENV_CONFIG"
+        echo "environment_config=$ENV_CONFIG" >> "$GITHUB_OUTPUT"
+    
     - name: Checkout TFVars from Config Repo
       uses: actions/checkout@v4
       with:
@@ -52,7 +73,7 @@ jobs:
 
     - name: Determine TFVars Path
       id: tfvars_path
-      run: echo "path=./config-repo/terraform.tfvars" >> $GITHUB_OUTPUT
+      run: echo "path=./config-repo/${{ steps.set_environment.outputs.environment_config }}/terraform.tfvars" >> $GITHUB_OUTPUT
 
     - name: Verify TFVars File
       run: |
